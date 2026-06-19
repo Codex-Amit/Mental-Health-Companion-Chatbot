@@ -47,6 +47,8 @@ export default function Journal({ sessionId }) {
   const [newEntry, setNewEntry] = useState(null)
 
   useEffect(() => {
+    if (!sessionId) { setLoading(false); return }
+    if (!sessionId) { setLoading(false); return }
     getJournalEntries(sessionId)
       .then(setEntries)
       .finally(() => setLoading(false))

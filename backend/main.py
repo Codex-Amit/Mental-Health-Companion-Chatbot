@@ -6,8 +6,10 @@ import os
 import uuid
 from typing import Optional
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()  # must be first
+# Load backend/.env regardless of launch directory
+load_dotenv(dotenv_path=str(Path(__file__).resolve().parent / ".env"), override=True)
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,7 +42,11 @@ conversation_histories: dict = {}
 @app.on_event("startup")
 def startup() -> None:
     init_db()
-    print("✅ MindEase API started.")
+    key = os.getenv("GROQ_API_KEY", "").strip()
+    if not key:
+        print("❌ ERROR: GROQ_API_KEY not found! Check backend/.env")
+    else:
+        print(f"✅ MindEase API started. Groq key loaded: {key[:8]}...{key[-4:]}")
 
 
 @app.get("/")

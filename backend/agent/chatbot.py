@@ -4,21 +4,32 @@ MindEase Chatbot — Groq only
 
 import os
 import json
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
 
-from openai import OpenAI                          # type: ignore # fixes "Import could not be resolved"
+# Always load from backend/.env regardless of where uvicorn is launched from
+_backend_dir = Path(__file__).resolve().parent.parent  # agent/ -> backend/
+load_dotenv(dotenv_path=str(_backend_dir / ".env"), override=True)
+
+from openai import OpenAI
 from utils.sentiment import analyse_sentiment, get_mood_emoji
 from utils.relaxation import get_relaxation_tip
 from agent.crisis_detector import detect_crisis, get_crisis_response
 from models.schemas import ChatResponse
 
-# Groq client
-client = OpenAI(
-    api_key=os.getenv("GROQ_API_KEY", ""),
-    base_url="https://api.groq.com/openai/v1"
-)
-MODEL: str = os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant"   # fixes "None not assignable to str"
+MODEL: str = os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant"
+
+
+def _get_client() -> OpenAI:
+    """Create Groq client fresh each call — key always read from env."""
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "GROQ_API_KEY is not set. "
+            "Add it to backend/.env (get a free key at https://console.groq.com/keys)"
+        )
+    return OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+
 
 SYSTEM_PROMPT = """You are MindEase, a warm, empathetic AI mental wellness companion for college students.
 
@@ -42,7 +53,6 @@ def chat(message: str, history: list, user_name: str = "Friend", session_id: str
     sentiment = analyse_sentiment(message)
     mood_emoji = get_mood_emoji(sentiment)
 
-    # Crisis check
     if detect_crisis(message):
         crisis_data = get_crisis_response()
         return ChatResponse(
@@ -54,14 +64,12 @@ def chat(message: str, history: list, user_name: str = "Friend", session_id: str
             mood_emoji="🤖"
         )
 
-    # Relaxation tip for negative emotions
     relaxation_tip = None
     if sentiment.label in ("negative", "distressed") or sentiment.emotion in (
         "anxious", "stressed", "lonely", "sad", "angry"
     ):
         relaxation_tip = get_relaxation_tip(sentiment.emotion)
 
-    # Build messages
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.append({
         "role": "system",
@@ -71,14 +79,14 @@ def chat(message: str, history: list, user_name: str = "Friend", session_id: str
         messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": message})
 
+    client = _get_client()
     response = client.chat.completions.create(
         model=MODEL,
         messages=messages,
         max_tokens=300,
         temperature=0.75
     )
-    reply = response.choices[0].message.content or ""
-    reply = reply.strip()
+    reply = (response.choices[0].message.content or "").strip()
 
     return ChatResponse(
         reply=reply,
@@ -91,6 +99,7 @@ def chat(message: str, history: list, user_name: str = "Friend", session_id: str
 
 
 def get_journal_reflection(content: str) -> str:
+    client = _get_client()
     response = client.chat.completions.create(
         model=MODEL,
         messages=[
@@ -103,8 +112,9 @@ def get_journal_reflection(content: str) -> str:
     return (response.choices[0].message.content or "").strip()
 
 
-def get_checkin_message(mood_score: int, mood_label: str, note: str = "") -> dict:  # fixes "None not assignable to str"
+def get_checkin_message(mood_score: int, mood_label: str, note: str = "") -> dict:
     note_text = f' They added: "{note}"' if note else ""
+    client = _get_client()
     response = client.chat.completions.create(
         model=MODEL,
         messages=[{
@@ -116,14 +126,13 @@ def get_checkin_message(mood_score: int, mood_label: str, note: str = "") -> dic
     )
     raw = (response.choices[0].message.content or "{}").strip()
 
-    # Strip markdown fences if present — fixes "json is not defined"
     if "```" in raw:
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
 
     try:
-        return json.loads(raw)                     # json is now imported at top
+        return json.loads(raw)
     except Exception:
         return {
             "message": "Thanks for checking in! Every step counts.",

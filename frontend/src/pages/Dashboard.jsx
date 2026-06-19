@@ -32,6 +32,8 @@ export default function Dashboard({ sessionId }) {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    if (!sessionId) { setLoading(false); return }
+    if (!sessionId) { setLoading(false); return }
     getMoodHistory(sessionId)
       .then(setHistory)
       .finally(() => setLoading(false))

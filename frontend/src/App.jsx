@@ -6,11 +6,13 @@ import Chat from './pages/Chat'
 import Dashboard from './pages/Dashboard'
 import Journal from './pages/Journal'
 
-const SESSION_KEY = 'mindease_session_id'
-const NAME_KEY = 'mindease_user_name'
-
 function OnboardingModal({ onDone }) {
   const [name, setName] = useState('')
+
+  const handleSubmit = () => {
+    const trimmed = name.trim()
+    if (trimmed) onDone(trimmed)
+  }
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -31,7 +33,7 @@ function OnboardingModal({ onDone }) {
             <input
               value={name}
               onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && name.trim() && onDone(name.trim())}
+              onKeyDown={e => e.key === 'Enter' && name.trim() && handleSubmit()}
               placeholder="Your name or nickname…"
               className="input-field"
               autoFocus
@@ -43,8 +45,9 @@ function OnboardingModal({ onDone }) {
           </div>
 
           <button
-            onClick={() => onDone(name.trim() || 'Friend')}
-            className="btn-primary w-full py-3"
+            onClick={handleSubmit}
+            disabled={!name.trim()}
+            className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Start Chatting 💬
           </button>
@@ -57,31 +60,22 @@ function OnboardingModal({ onDone }) {
 export default function App() {
   const [sessionId, setSessionId] = useState(null)
   const [userName, setUserName] = useState(null)
-  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Always clear session on page load — show modal every time
-    localStorage.removeItem(SESSION_KEY)
-    localStorage.removeItem(NAME_KEY)
-    setSessionId(null)
-    setUserName(null)
-    setReady(true)
+    // Always clear stale chat on fresh page load
+    localStorage.removeItem('mindease_session_id')
+    localStorage.removeItem('mindease_user_name')
+    localStorage.removeItem('mindease_chat_messages')
   }, [])
 
   const handleOnboard = (name) => {
-    const sid = uuidv4()
-    localStorage.setItem(SESSION_KEY, sid)
-    localStorage.setItem(NAME_KEY, name)
-    setSessionId(sid)
+    setSessionId(uuidv4())
     setUserName(name)
   }
 
-  // Always show modal if no name saved
-  const showModal = ready && (!sessionId || !userName)
-
   return (
     <BrowserRouter>
-      {showModal && <OnboardingModal onDone={handleOnboard} />}
+      {(!sessionId || !userName) && <OnboardingModal onDone={handleOnboard} />}
       <div className="flex h-screen bg-slate-50">
         <Sidebar />
         <main className="flex-1 overflow-hidden">

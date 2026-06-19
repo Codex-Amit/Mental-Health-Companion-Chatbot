@@ -1,20 +1,23 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { sendMessage, clearHistory } from '../utils/api'
 
-const WELCOME_MESSAGE = {
-  id: 'welcome',
-  role: 'assistant',
-  content: `Hi there 🤖 I'm MindEase, your personal wellness companion. I'm here to listen, support, and help you feel better — no judgment, ever.\n\nHow are you feeling today?`,
-  sentiment: null,
-  relaxationTip: null,
-  crisisDetected: false,
-  moodEmoji: '🤖',
-  timestamp: new Date().toISOString()
-}
-
 const STORAGE_KEY = 'mindease_chat_messages'
 
-function loadMessages() {
+function makeWelcomeMessage(userName) {
+  const name = userName || 'Friend'
+  return {
+    id: 'welcome',
+    role: 'assistant',
+    content: `Hi ${name}! 👋 I'm MindEase, your personal wellness companion. I'm here to listen, support, and help you feel better — no judgment, ever.\n\nHow are you feeling today?`,
+    sentiment: null,
+    relaxationTip: null,
+    crisisDetected: false,
+    moodEmoji: '🤖',
+    timestamp: new Date().toISOString()
+  }
+}
+
+function loadSavedMessages() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
@@ -22,7 +25,7 @@ function loadMessages() {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed
     }
   } catch (e) {}
-  return [WELCOME_MESSAGE]
+  return null
 }
 
 function saveMessages(messages) {
@@ -32,15 +35,29 @@ function saveMessages(messages) {
 }
 
 export const useChat = (sessionId, userName) => {
-  const [messages, setMessages] = useState(loadMessages)
+  const [messages, setMessages] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
   const [error, setError] = useState(null)
   const [lastSentiment, setLastSentiment] = useState(null)
   const messagesEndRef = useRef(null)
+  const initializedRef = useRef(false)
 
-  // Save to localStorage whenever messages change
   useEffect(() => {
-    saveMessages(messages)
+    if (!userName || initializedRef.current) return
+    initializedRef.current = true
+
+    const saved = loadSavedMessages()
+    if (saved) {
+      setMessages(saved)          // returning to chat — restore it
+    } else {
+      const welcome = [makeWelcomeMessage(userName)]
+      setMessages(welcome)        // new session — show welcome
+      saveMessages(welcome)
+    }
+  }, [userName])
+
+  useEffect(() => {
+    if (messages && messages.length > 0) saveMessages(messages)
   }, [messages])
 
   const sendMsg = useCallback(async (text) => {
@@ -53,7 +70,7 @@ export const useChat = (sessionId, userName) => {
       timestamp: new Date().toISOString()
     }
 
-    setMessages(prev => [...prev, userMsg])
+    setMessages(prev => [...(prev || []), userMsg])
     setIsTyping(true)
     setError(null)
 
@@ -73,7 +90,7 @@ export const useChat = (sessionId, userName) => {
         timestamp: new Date().toISOString()
       }
 
-      setMessages(prev => [...prev, botMsg])
+      setMessages(prev => [...(prev || []), botMsg])
     } catch (err) {
       setError('Something went wrong. Please check your connection and try again.')
     } finally {
@@ -82,21 +99,17 @@ export const useChat = (sessionId, userName) => {
   }, [sessionId, userName, isTyping])
 
   const resetChat = useCallback(async () => {
-    await clearHistory(sessionId)
-    const freshWelcome = {
-      id: 'welcome-' + Date.now(),
-      role: 'assistant',
-      content: `Chat cleared 🌿 Starting fresh. How are you feeling right now?`,
-      sentiment: null,
-      timestamp: new Date().toISOString()
-    }
-    setMessages([freshWelcome])
-    setLastSentiment(null)
+    try { await clearHistory(sessionId) } catch (e) {}
     localStorage.removeItem(STORAGE_KEY)
-  }, [sessionId])
+    initializedRef.current = false
+    const freshWelcome = [makeWelcomeMessage(userName)]
+    setMessages(freshWelcome)
+    saveMessages(freshWelcome)
+    setLastSentiment(null)
+  }, [sessionId, userName])
 
   return {
-    messages,
+    messages: messages || [],
     isTyping,
     error,
     lastSentiment,
