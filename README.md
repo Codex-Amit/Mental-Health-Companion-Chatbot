@@ -10,7 +10,7 @@
 ![Groq](https://img.shields.io/badge/Groq-Llama_3-F55036?style=for-the-badge&logo=groq&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![License](https://img.shields.io/badge/License-GNU%20GPL-blue)
 
 <br/>
 
