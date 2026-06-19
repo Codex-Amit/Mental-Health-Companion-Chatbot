@@ -272,13 +272,14 @@ npm run dev
 
 ### Chat Interface
 
-
+![chat_Interface](https://github.com/Codex-Amit/Mental-Health-Companion-Chatbot/blob/7666114b266d7b7f50ee09f63bdc840621707e56/assets/chat%20interface.png)
 
 ### Mood Traker
- image
+
+![mood_tracker](https://github.com/Codex-Amit/Mental-Health-Companion-Chatbot/blob/7666114b266d7b7f50ee09f63bdc840621707e56/assets/mood%20tracker.png)
 
 ### Journel Tab
- image
+![journal](https://github.com/Codex-Amit/Mental-Health-Companion-Chatbot/blob/7666114b266d7b7f50ee09f63bdc840621707e56/assets/Journal.png)
 
 ---
 
